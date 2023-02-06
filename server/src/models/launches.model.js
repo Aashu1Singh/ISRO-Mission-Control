@@ -1,39 +1,97 @@
 const launchDatabase = require("./launches.mongo");
 const planets = require("./planets.mongo");
+const axios = require("axios");
 
-const launch = {
-  flightNumber: 100,
-  mission: "kepler Exploration X",
-  rocket: "Explorer IS1",
-  launchDate: new Date("December 27, 2030"),
-  target: "Kepler-442 b",
-  upcoming: true,
-  customers: ["NOA", "NASA"],
-  success: true,
-};
+// const launch = {
+//   flightNumber: 100,
+//   mission: "kepler Exploration X",
+//   rocket: "Explorer IS1",
+//   launchDate: new Date("December 27, 2030"),
+//   target: "Kepler-442 b",
+//   upcoming: true,
+//   customers: ["NOA", "NASA"],
+//   success: true,
+// };
 
-saveLaunch(launch);
-// launches.set(launch.flightNumber, launch);
+// saveLaunch(launch);
 
-async function getAllLaunches() {
-  return await launchDatabase.find(
-    {},
-    {
-      _id: 0,
-      __v: 0,
-    }
-  );
+const SACEX_API_URL = "https://api.spacexdata.com/v4/launches/query";
+
+async function populateLaunches() {
+  const response = await axios.post(SACEX_API_URL, {
+    query: {},
+    options: {
+      pagination: false,
+      populate: [
+        {
+          path: "rocket",
+          select: {
+            name: "1",
+          },
+        },
+        {
+          path: "payloads",
+          select: {
+            customers: 1,
+          },
+        },
+      ],
+    },
+  });
+
+  if (response.status != 200) {
+    console.log("Error while downloading launch data");
+    throw new Error("Launch data downloaad failed");
+  }
+
+  const launchDocs = response.data.docs;
+  for (const launchDoc of launchDocs) {
+    const payloads = launchDoc["payloads"];
+    const customers = payloads.flatMap((payload) => {
+      return payload["customers"];
+    });
+    const launch = {
+      flightNumber: launchDoc["flight_number"],
+      mission: launchDoc["name"],
+      rocket: launchDoc["rocket"]["name"],
+      upcoming: launchDoc["upcoming"],
+      success: launchDoc["success"],
+      launchDate: launchDoc["date_local"],
+      customers,
+    };
+    // console.log(`${launch.flightNumber}`);
+    saveLaunch(launch);
+  }
+}
+
+async function loadLaunchData() {
+  const firstLaunch = await findLaunch({
+    flightNumber: 1,
+    rocket: "Falcon 1",
+    mission: "FalconSat",
+  });
+  if (firstLaunch) {
+    console.log("Launch data already exits");
+    return;
+  } else {
+    await populateLaunches();
+  }
+}
+
+async function getAllLaunches(skip, limit) {
+  return await launchDatabase
+    .find(
+      {},
+      {
+        _id: 0,
+        __v: 0,
+      }
+    )
+    .skip(skip)
+    .limit(limit);
 }
 
 async function saveLaunch(launch) {
-  const planet = await planets.findOne({
-    keplerName: launch.target,
-  });
-
-  if (!planet) {
-    throw new Error("No matching planets found");
-  }
-
   await launchDatabase.findOneAndUpdate(
     {
       flightNumber: launch.flightNumber,
@@ -46,6 +104,14 @@ async function saveLaunch(launch) {
 }
 
 async function scheduleNewLaunch(launch) {
+  const planet = await planets.findOne({
+    keplerName: launch.target,
+  });
+
+  if (!planet) {
+    throw new Error("No matching planets found");
+  }
+
   const newFlightNumber = (await getLatestFlightNumber()) + 1;
 
   const newLaunch = Object.assign(launch, {
@@ -71,9 +137,13 @@ async function scheduleNewLaunch(launch) {
 //   );
 // }
 
+async function findLaunch(filter) {
+  return await launchDatabase.findOne(filter);
+}
+
 async function existsLaunchById(launchId) {
   // return launch.has(launchId);
-  return await launchDatabase.findOne({
+  return await findLaunch({
     flightNumber: launchId,
   });
 }
@@ -111,4 +181,5 @@ module.exports = {
   scheduleNewLaunch,
   existsLaunchById,
   abortLaunchById,
+  loadLaunchData,
 };

@@ -1,12 +1,14 @@
 const http = require("http");
+require("dotenv").config();
+
 const app = require("./app");
 const mongoose = require("mongoose");
 
 const { loadPlanetsData } = require("./models/planets.model");
+const { loadLaunchData } = require("./models/launches.model");
 
-const PORT = 5000;
-const MONGO_URL =
-  "mongodb+srv://nasa-api:11Y08W8XklhazbhG@cluster0.hzy3dgr.mongodb.net/nasa?retryWrites=true&w=majority";
+const PORT = process.env.PORT;
+const MONGO_URL = process.env.MONGO_URL;
 
 const server = http.createServer(app);
 
@@ -24,7 +26,8 @@ async function startServer() {
     useUnifiedTopology: true,
   });
   await loadPlanetsData();
-  
+  await loadLaunchData();
+
   server.listen(PORT, () => {
     console.log(`Server is Running on port ${PORT}`);
   });
