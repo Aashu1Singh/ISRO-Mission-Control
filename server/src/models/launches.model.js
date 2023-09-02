@@ -9,7 +9,7 @@ const axios = require("axios");
 //   launchDate: new Date("December 27, 2030"),
 //   target: "Kepler-442 b",
 //   upcoming: true,
-//   customers: ["NOA", "NASA"],
+//   customers: ["NOA", "ISRO"],
 //   success: true,
 // };
 
@@ -117,7 +117,7 @@ async function scheduleNewLaunch(launch) {
   const newLaunch = Object.assign(launch, {
     upcoming: true,
     success: true,
-    customers: ["ZTM", "Nasa"],
+    customers: ["ZTM", "ISRO"],
     flightNumber: newFlightNumber,
   });
 
