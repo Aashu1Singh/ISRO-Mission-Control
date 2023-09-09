@@ -131,7 +131,7 @@ async function scheduleNewLaunch(launch) {
 //     Object.assign(launch, {
 //       success: true,
 //       upcoming: true,
-//       customer: ["Zero to mastery", "NASA"],
+//       customer: ["Zero to mastery", "ISRO"],
 //       flightNumber: latestFlightNumber,
 //     })
 //   );
